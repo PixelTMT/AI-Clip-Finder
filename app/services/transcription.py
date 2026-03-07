@@ -40,7 +40,7 @@ def transcribe_audio(file_path: str, api_key: str) -> dict:
     with open(file_path, "rb") as file:
         transcription = client.audio.transcriptions.create(
             file=(os.path.basename(file_path), file.read()),
-            model="scribe",
+            model="whisper-large-v3",
             response_format="verbose_json",
             timestamp_granularities=["word", "segment"],
             language="en",

@@ -312,6 +312,8 @@ async def transcribe_project(project_id: str, request: Request, background_tasks
             raise HTTPException(status_code=404, detail="Project not found")
     
     check_project_lock(project_id)
+    api_key = get_api_key(request)
+
 
     project_path = os.path.join(settings.PROJECTS_DIR, project_id)
     video_path = os.path.join(
@@ -330,7 +332,6 @@ async def transcribe_project(project_id: str, request: Request, background_tasks
         message="Transcribing audio...",
     )
 
-    api_key = get_api_key(request)
 
     if background_tasks:
         background_tasks.add_task(
@@ -435,6 +436,8 @@ async def analyze_project(
 ):
     user_id = getattr(request.state, "user_id", None)
     check_project_lock(project_id)
+    api_key = get_api_key(request)
+
 
     project_path = os.path.join(settings.PROJECTS_DIR, project_id)
     video_path = os.path.join(project_path, "processed.mp4")
@@ -458,7 +461,6 @@ async def analyze_project(
         message="Analyzing clips...",
     )
 
-    api_key = get_api_key(request)
 
     if background_tasks:
         background_tasks.add_task(
