@@ -1,5 +1,5 @@
 @echo off
-echo Starting AI-clip Discovery API...
+echo Starting AI-clip Finder API...
 
 REM Check if uv is installed
 where uv >nul 2>nul

@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
     # Shutdown: nothing to do for now
 
 
-app = FastAPI(title="AI-clip Discovery API", lifespan=lifespan)
+app = FastAPI(title="AI-clip Finder API", lifespan=lifespan)
 
 # Add hosting middleware
 app.add_middleware(HostingMiddleware)

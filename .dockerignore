@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+data/
+tests/
+.git/
+.gitignore
+.gitattributes
+README.md
+CHANGELOG.md
+run.bat
+conductor/
