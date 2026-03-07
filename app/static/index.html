@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI-clip Discovery</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body class="dark-mode">
+    <header>
+      <h1>AI-clip Discovery</h1>
+      <div id="upload-section">
+        <input type="file" id="video-upload" accept="video/mp4" />
+        <button id="upload-btn">New Project</button>
+      </div>
+    </header>
+
+    <main>
+      <nav id="project-sidebar">
+        <h3>Projects</h3>
+        <div id="project-list">
+          <!-- Projects will be listed here -->
+        </div>
+      </nav>
+
+      <section id="workspace">
+        <div id="no-project-msg">Select or create a project to begin</div>
+        <div id="project-details" class="hidden">
+          <div id="error-banner" class="hidden"></div>
+          <div id="video-area">
+            <video id="main-video" controls>
+              Your browser does not support the video tag.
+            </video>
+            <div id="timeline-container"></div>
+            <div id="transcript-view">
+              <div class="section-header">
+                <h3>Transcript</h3>
+                <button id="btn-transcribe" class="action-btn hidden">
+                  Transcribe
+                </button>
+                <button id="btn-generate-ass" class="action-btn hidden" hidden>
+                  Generate Animated ASS
+                </button>
+              </div>
+
+              <div id="transcript-content"></div>
+            </div>
+          </div>
+
+          <div id="clips-area">
+            <div class="section-header">
+              <h3>AI Suggested Clips</h3>
+              <div class="sort-controls">
+                <label for="clip-sort">Sort by:</label>
+                <select id="clip-sort">
+                  <option value="score">Score (High-Low)</option>
+                  <option value="time">Time (Chronological)</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="analysis-controls" class="hidden">
+              <div class="control-row">
+                <div class="input-group">
+                  <label for="clip-count">Count:</label>
+                  <input
+                    type="number"
+                    id="clip-count"
+                    min="0"
+                    placeholder="0 (Auto)"
+                    title="0 = Find all high-impact moments"
+                  />
+                </div>
+              </div>
+              <textarea
+                id="custom-prompt"
+                rows="2"
+                placeholder="Optional: Focus on specific topics, funny moments, etc..."
+              ></textarea>
+              <button id="btn-analyze" class="action-btn">Find Clips</button>
+            </div>
+
+            <div id="clips-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="notification-area">
+      <!-- Active tasks will appear here -->
+    </div>
+
+    <div id="progress-overlay" class="hidden">
+      <div class="spinner"></div>
+      <p id="progress-text">Processing...</p>
+    </div>
+
+    <div id="ass-config-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3>ASS Subtitle Settings</h3>
+        <div class="control-group">
+          <label for="ass-bg-color">Highlight Color</label>
+          <input type="color" id="ass-bg-color" value="#FF0000" />
+        </div>
+        <div class="control-group">
+          <label for="ass-text-color">Text Color</label>
+          <input type="color" id="ass-text-color" value="#FFFFFF" />
+        </div>
+        <div class="control-group">
+          <label for="ass-font-size">Font Size</label>
+          <input
+            type="number"
+            id="ass-font-size"
+            value="48"
+            min="10"
+            max="200"
+          />
+        </div>
+        <div class="control-group">
+          <label for="ass-pulse-scale">Pulse Scale</label>
+          <input
+            type="number"
+            id="ass-pulse-scale"
+            value="1.2"
+            step="0.1"
+            min="1.0"
+            max="2.0"
+          />
+        </div>
+        <div class="control-group">
+          <label for="ass-alignment">Alignment</label>
+          <select id="ass-alignment">
+            <option value="1">Bottom Left</option>
+            <option value="2" selected>Bottom Center</option>
+            <option value="3">Bottom Right</option>
+            <option value="4">Middle Left</option>
+            <option value="5">Middle Center</option>
+            <option value="6">Middle Right</option>
+            <option value="7">Top Left</option>
+            <option value="8">Top Center</option>
+            <option value="9">Top Right</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-ass-cancel" class="action-btn">Cancel</button>
+          <button id="btn-ass-generate" class="action-btn primary">
+            Generate & Download
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/polling.js"></script>
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clip Editor - AI-clip Discovery</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/editor.css">
+</head>
+<body class="dark-mode">
+    <header>
+        <div class="header-left">
+            <a href="/" class="back-link">&larr; Back to Dashboard</a>
+            <h1>Clip Editor</h1>
+        </div>
+    </header>
+
+    <main>
+        <div id="editor-container">
+            <div id="preview-area">
+                <div id="preview-wrapper">
+                    <video id="preview-video" playsinline>
+                        Your browser does not support the video tag.
+                    </video>
+                    <div id="subtitle-overlay"></div>
+                </div>
+                <div id="playback-controls">
+                    <button id="btn-play-pause" class="control-btn">Play</button>
+                    <button id="btn-restart" class="control-btn">Restart</button>
+                    <span id="time-display">00:00 / 00:00</span>
+                </div>
+            </div>
+
+            <div id="controls-panel">
+                <h2>Customization</h2>
+                <form id="editor-form">
+                    <div class="control-group">
+                        <label>Timing Adjustment (Seconds)</label>
+                        <div class="row">
+                            <div class="col">
+                                <label for="start-offset">Start Offset</label>
+                                <input type="number" id="start-offset" value="0" step="0.1">
+                            </div>
+                            <div class="col">
+                                <label for="end-offset">End Offset</label>
+                                <input type="number" id="end-offset" value="0" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="font-family">Font Family</label>
+                        <select id="font-family">
+                            <option value="Inter">Inter</option>
+                            <option value="Roboto">Roboto</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Impact">Impact</option>
+                            <option value="Verdana">Verdana</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="font-size">Font Size</label>
+                        <select id="font-size">
+                            <option value="Small">Small</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Large">Large</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="font-color">Font Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="font-color" value="#FFFFFF">
+                            <span id="font-color-hex">#FFFFFF</span>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="text-style">Text Style</label>
+                        <select id="text-style">
+                            <option value="None">None</option>
+                            <option value="Outline" selected>Outline</option>
+                            <option value="Shadow">Shadow</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="subtitle-position">Position</label>
+                        <select id="subtitle-position">
+                            <option value="Top">Top</option>
+                            <option value="Center">Center</option>
+                            <option value="Bottom" selected>Bottom</option>
+                        </select>
+                    </div>
+                </form>
+
+                <div id="action-buttons">
+                    <button id="btn-create-clip" class="action-btn primary">Create Clip (Preview)</button>
+                    <button id="btn-download" class="action-btn secondary hidden">Download Final</button>
+                    <button id="btn-back-edit" class="action-btn hidden">Back to Edit</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="progress-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p id="progress-text">Processing...</p>
+    </div>
+
+    <script src="/static/js/sentence_builder.js"></script>
+    <script src="/static/js/editor.js"></script>
+</body>
+</html>

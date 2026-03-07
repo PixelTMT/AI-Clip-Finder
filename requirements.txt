@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+filelock
+pydantic
+python-multipart
+groq
+openai
+python-dotenv
