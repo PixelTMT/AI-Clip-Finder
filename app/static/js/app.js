@@ -20,6 +20,112 @@ if (typeof window !== 'undefined') {
     window.formatTime = formatTime;
 }
 
+// --- Pollinations BYOP Auth ---
+const PollinationsAuth = (() => {
+    const STORAGE_KEY = 'pollinations_api_key';
+
+    function getKey() {
+        return localStorage.getItem(STORAGE_KEY);
+    }
+
+    function setKey(key) {
+        localStorage.setItem(STORAGE_KEY, key);
+    }
+
+    function clearKey() {
+        localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function getAuthHeaders() {
+        const key = getKey();
+        return key ? { 'Authorization': `Bearer ${key}` } : {};
+    }
+
+    async function fetchAppConfig() {
+        try {
+            const res = await fetch('/config/pollinations');
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function handleCallback() {
+        // URL fragment: #api_key=sk_abc123
+        const fragment = window.location.hash;
+        if (fragment.includes('api_key=')) {
+            const key = fragment.split('api_key=')[1].split('&')[0];
+            if (key) {
+                setKey(key);
+                // Clean URL without reloading
+                history.replaceState(null, '', window.location.pathname);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    async function init(btnConnect, statusEl) {
+        // Check if returning from OAuth
+        handleCallback();
+
+        const config = await fetchAppConfig();
+        const appKey = config ? config.app_key : '';
+        const authUrl = config ? config.auth_url : 'https://enter.pollinations.ai/authorize';
+
+        function updateUI() {
+            const key = getKey();
+            if (key) {
+                btnConnect.textContent = 'Reconnect';
+                btnConnect.className = 'auth-btn connected';
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'auth-status connected';
+            } else {
+                btnConnect.textContent = 'Connect with Pollinations';
+                btnConnect.className = 'auth-btn';
+                statusEl.textContent = 'Not connected';
+                statusEl.className = 'auth-status disconnected';
+            }
+        }
+
+        btnConnect.addEventListener('click', () => {
+            const redirectUrl = encodeURIComponent(window.location.href.split('#')[0]);
+            const url = `${authUrl}?redirect_url=${redirectUrl}&app_key=${appKey}`;
+            window.location.href = url;
+        });
+
+        updateUI();
+    }
+
+    function showReconnectToast() {
+        if (window.showToast) {
+            window.showToast('Pollinations key expired. Please reconnect.', 'error', 8000);
+        }
+        clearKey();
+        // Update UI if elements still in DOM
+        const btnConnect = document.getElementById('btn-connect-pollinations');
+        const statusEl = document.getElementById('pollinations-status');
+        if (btnConnect && statusEl) {
+            btnConnect.textContent = 'Connect with Pollinations';
+            btnConnect.className = 'auth-btn';
+            statusEl.textContent = 'Not connected';
+            statusEl.className = 'auth-status disconnected';
+        }
+    }
+
+    function showBalanceToast() {
+        if (window.showToast) {
+            window.showToast(
+                'Insufficient Pollinations balance. <a href="https://pollinations.ai/pricing" target="_blank" style="color:#fff;text-decoration:underline">Top up here</a>',
+                'error',
+                10000
+            );
+        }
+    }
+
+    return { getKey, setKey, clearKey, getAuthHeaders, init, showReconnectToast, showBalanceToast };
+})();
 document.addEventListener('DOMContentLoaded', () => {
     const videoUpload = document.getElementById('video-upload');
     const projectList = document.getElementById('project-list');
@@ -46,6 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const assConfigModal = document.getElementById('ass-config-modal');
     const btnAssCancel = document.getElementById('btn-ass-cancel');
     const btnAssGenerate = document.getElementById('btn-ass-generate');
+
+    // Init Pollinations Auth
+    const btnConnectPollinations = document.getElementById('btn-connect-pollinations');
+    const pollinationsStatus = document.getElementById('pollinations-status');
+    PollinationsAuth.init(btnConnectPollinations, pollinationsStatus);
 
     let projects = [];
     let selectedProjectId = null;
@@ -217,7 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startTranscription(projectId) {
         // Use asyncOperation
-        asyncOperation(`/projects/${projectId}/transcribe`, { method: 'POST' });
+        asyncOperation(`/projects/${projectId}/transcribe`, {
+            method: 'POST',
+            headers: PollinationsAuth.getAuthHeaders()
+        });
         // We can optimistically assume it started and just update UI via fetchProjects
         // But fetchProjects might be too fast and backend hasn't updated status yet.
         // However, asyncOperation is also "fast" (just triggers fetch).
@@ -230,7 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clipCount) params.append('clip_count', clipCount);
 
         // Use asyncOperation
-        asyncOperation(`/projects/${projectId}/analyze?${params.toString()}`, { method: 'POST' });
+        asyncOperation(`/projects/${projectId}/analyze?${params.toString()}`, {
+            method: 'POST',
+            headers: PollinationsAuth.getAuthHeaders()
+        });
     }
 
     async function deleteProject(projectId) {

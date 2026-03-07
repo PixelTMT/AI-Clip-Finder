@@ -13,6 +13,7 @@ from app.api.models import (
 from app.core.config import settings
 from app.services import storage, media, transcription, llm
 from app.services.subtitle_service import SubtitleService
+from openai import AuthenticationError, APIStatusError
 
 router = APIRouter()
 
@@ -30,6 +31,25 @@ def get_user_project(index: dict, project_id: str, user_id: str = None) -> Optio
         
     return project
 
+def get_api_key(request: Request) -> str:
+    """Extract API key from Authorization or X-Pollinations-Key header.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        The extracted API key string.
+
+    Raises:
+        HTTPException: 401 if no API key is found.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    key = request.headers.get("X-Pollinations-Key", "")
+    if key:
+        return key
+    raise HTTPException(status_code=401, detail="api_key_missing")
 
 @router.get("/")
 async def get_index():
@@ -43,6 +63,14 @@ async def get_editor():
     from fastapi.responses import FileResponse
 
     return FileResponse("app/static/editor.html")
+
+@router.get("/config/pollinations")
+async def get_pollinations_config():
+    """Return Pollinations configuration for client-side BYOP auth."""
+    return {
+        "app_key": settings.POLLINATIONS_APP_KEY,
+        "auth_url": "https://enter.pollinations.ai/authorize",
+    }
 
 
 @router.get("/projects/active-operations")
@@ -207,7 +235,7 @@ async def upload_video(
     return {"message": "Upload successful", "project_id": project_id}
 
 
-def process_transcribe_background(project_id: str, video_path: str, audio_path: str):
+def process_transcribe_background(project_id: str, video_path: str, audio_path: str, api_key: str):
     try:
         storage.update_project_status(project_id, "transcribing")
         progress_store[project_id] = "Extracting audio..."
@@ -226,7 +254,7 @@ def process_transcribe_background(project_id: str, video_path: str, audio_path: 
             status=OperationStatus.RUNNING,
             message="Transcribing audio...",
         )
-        transcript = transcription.transcribe_audio(audio_path)
+        transcript = transcription.transcribe_audio(audio_path, api_key=api_key)
 
         lock = FileLock(settings.LOCK_FILE)
         with lock:
@@ -238,6 +266,31 @@ def process_transcribe_background(project_id: str, video_path: str, audio_path: 
         storage.update_project_status(project_id, "transcribed")
         storage.clear_active_operation(project_id)
 
+    except AuthenticationError as e:
+        storage.update_project_status(project_id, "error", str(e))
+        storage.set_active_operation(
+            project_id,
+            type=OperationType.TRANSCRIBE,
+            status=OperationStatus.FAILED,
+            message="auth_expired",
+        )
+    except APIStatusError as e:
+        if e.status_code == 402:
+            storage.update_project_status(project_id, "error", str(e))
+            storage.set_active_operation(
+                project_id,
+                type=OperationType.TRANSCRIBE,
+                status=OperationStatus.FAILED,
+                message="insufficient_balance",
+            )
+        else:
+            storage.update_project_status(project_id, "error", str(e))
+            storage.set_active_operation(
+                project_id,
+                type=OperationType.TRANSCRIBE,
+                status=OperationStatus.FAILED,
+                message=str(e),
+            )
     except Exception as e:
         storage.update_project_status(project_id, "error", str(e))
         storage.set_active_operation(
@@ -277,12 +330,14 @@ async def transcribe_project(project_id: str, request: Request, background_tasks
         message="Transcribing audio...",
     )
 
+    api_key = get_api_key(request)
+
     if background_tasks:
         background_tasks.add_task(
-            process_transcribe_background, project_id, video_path, audio_path
+            process_transcribe_background, project_id, video_path, audio_path, api_key
         )
     else:
-        process_transcribe_background(project_id, video_path, audio_path)
+        process_transcribe_background(project_id, video_path, audio_path, api_key)
 
     return {"message": "Transcription started", "project_id": project_id}
 
@@ -293,6 +348,7 @@ def process_analyze_background(
     transcript: dict,
     custom_prompt: Optional[str],
     clip_count: Optional[int],
+    api_key: str,
 ):
     try:
         storage.update_project_status(project_id, "analyzing")
@@ -304,7 +360,7 @@ def process_analyze_background(
             message="Analyzing with LLM...",
         )
         clips = llm.analyze_transcript(
-            transcript, custom_instructions=custom_prompt, clip_count=clip_count
+            transcript, custom_instructions=custom_prompt, clip_count=clip_count, api_key=api_key
         )
 
         progress_store[project_id] = "Generating thumbnails..."
@@ -334,6 +390,31 @@ def process_analyze_background(
         storage.update_project_status(project_id, "completed")
         storage.clear_active_operation(project_id)
 
+    except AuthenticationError as e:
+        storage.update_project_status(project_id, "error", str(e))
+        storage.set_active_operation(
+            project_id,
+            type=OperationType.FIND_CLIPS,
+            status=OperationStatus.FAILED,
+            message="auth_expired",
+        )
+    except APIStatusError as e:
+        if e.status_code == 402:
+            storage.update_project_status(project_id, "error", str(e))
+            storage.set_active_operation(
+                project_id,
+                type=OperationType.FIND_CLIPS,
+                status=OperationStatus.FAILED,
+                message="insufficient_balance",
+            )
+        else:
+            storage.update_project_status(project_id, "error", str(e))
+            storage.set_active_operation(
+                project_id,
+                type=OperationType.FIND_CLIPS,
+                status=OperationStatus.FAILED,
+                message=str(e),
+            )
     except Exception as e:
         storage.update_project_status(project_id, "error", str(e))
         storage.set_active_operation(
@@ -377,6 +458,8 @@ async def analyze_project(
         message="Analyzing clips...",
     )
 
+    api_key = get_api_key(request)
+
     if background_tasks:
         background_tasks.add_task(
             process_analyze_background,
@@ -386,10 +469,11 @@ async def analyze_project(
             transcript,
             custom_prompt,
             clip_count,
+            api_key,
         )
     else:
         process_analyze_background(
-            project_id, project_path, video_path, transcript, custom_prompt, clip_count
+            project_id, project_path, video_path, transcript, custom_prompt, clip_count, api_key
         )
 
     return {"message": "Analysis started", "project_id": project_id}

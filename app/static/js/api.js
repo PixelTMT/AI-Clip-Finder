@@ -19,6 +19,18 @@ function asyncOperation(url, options = {}) {
     // We explicitly do NOT return the promise to the caller to prevent awaiting.
     fetch(url, options)
         .then(response => {
+            if (response.status === 401) {
+                if (typeof PollinationsAuth !== 'undefined') {
+                    PollinationsAuth.showReconnectToast();
+                }
+                return;
+            }
+            if (response.status === 402) {
+                if (typeof PollinationsAuth !== 'undefined') {
+                    PollinationsAuth.showBalanceToast();
+                }
+                return;
+            }
             if (!response.ok) {
                 return response.text().then(text => {
                     console.error(`Async operation failed [${url}]: ${text}`);

@@ -11,8 +11,8 @@ class Settings:
     
     # LLM Settings
     LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://gen.pollinations.ai/v1")
-    LLM_MODEL = os.environ.get("LLM_MODEL", "openai-large")
-    LLM_API_KEY = os.environ.get("LLM_API_KEY", "dummy") # Pollinations doesn't check keys but client needs one
+    LLM_MODEL = os.environ.get("LLM_MODEL", "openai")
+    POLLINATIONS_APP_KEY = os.environ.get("POLLINATIONS_APP_KEY", "")
     # Hosting & Limits
     HOSTING = os.environ.get("HOSTING", "false").lower() == "true"
     MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB

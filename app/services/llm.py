@@ -61,8 +61,9 @@ def analyze_transcript(
     transcript_data: dict,
     custom_instructions: Optional[str] = None,
     clip_count: Optional[int] = None,
+    api_key: str = "dummy",
 ) -> list:
-    client = OpenAI(base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY)
+    client = OpenAI(base_url=settings.LLM_BASE_URL, api_key=api_key)
 
     if clip_count is None:
         clip_instruction = "identify 3-5 high-impact moments that would make excellent viral clips (e.g., for TikTok, YouTube Shorts, or Instagram Reels)"

@@ -5,7 +5,7 @@ AI-clip Finder is a high-performance FastAPI backend designed for automated vide
 ## 🚀 Key Features
 
 - **Automated Clipping**: Uses LLMs (OpenAI/Pollinations) to analyze transcripts and identify segments with high "viral potential."
-- **High-Speed Transcription**: Integrates with **Groq (Whisper-v3)** for near-instant audio-to-text conversion.
+- **BYOP Transcription**: Users connect their own Pollinations account for AI-powered transcription and analysis — zero server AI costs.
 - **Vertical Transformation**: Automatically crops horizontal videos to **9:16 aspect ratio**, optimized for TikTok, Reels, and YouTube Shorts.
 - **Animated Subtitles**: Generates and burns in dynamic, "karaoke-style" animated subtitles using the ASS format.
 - **Hosting Mode**:
@@ -20,8 +20,8 @@ AI-clip Finder is a high-performance FastAPI backend designed for automated vide
 - **Package Manager**: [uv](https://github.com/astral-sh/uv)
 - **Media Engine**: [FFmpeg](https://ffmpeg.org/) & [FFprobe](https://ffmpeg.org/ffprobe.html)
 - **AI Services**:
-  - **Transcription**: Groq (Whisper-large-v3)
-  - **Analysis**: OpenAI-compatible LLMs (defaulting to Pollinations AI)
+  - **Transcription**: Pollinations Whisper / Scribe (user-provided key)
+  - **Analysis**: Pollinations LLMs (user-provided key)
 - **Frontend**: Vanilla JavaScript / HTML5 / CSS3
 
 ## 📂 Project Structure
@@ -79,8 +79,7 @@ run.bat
    Create a `.env` file in the root directory:
 
    ```env
-   GROQ_API_KEY=your_groq_key
-   LLM_API_KEY=your_llm_key  # Optional for some providers
+   POLLINATIONS_APP_KEY=pk_your_app_key_here
    HOSTING=false             # Set to true for multi-user mode
    ```
 
@@ -89,6 +88,16 @@ run.bat
    uv run uvicorn app.main:app --reload
    ```
 
+## 🔑 BYOP (Bring Your Own Pollen)
+
+This app uses a **Bring Your Own Pollen** model — users connect their own Pollinations account to enable AI features. Server AI cost: **$0**.
+
+- Click **"Connect with Pollinations"** in the app header
+- You'll be redirected to [enter.pollinations.ai](https://enter.pollinations.ai) to authorize
+- Your personal API key is stored in your browser (localStorage) and sent per-request
+- Keys expire after 30 days — simply reconnect to refresh
+- All AI costs (transcription, clip analysis) are billed to your Pollinations account
+
 ## 📡 API Overview
 
 ### Projects
@@ -96,7 +105,7 @@ run.bat
 - `POST /projects`: Create a new clipping project.
 - `GET /projects`: List all projects (filtered by user if `HOSTING=true`).
 - `POST /projects/{id}/upload`: Upload video file (triggers compression).
-- `POST /projects/{id}/transcribe`: Extract audio and generate transcript via Groq.
+- `POST /projects/{id}/transcribe`: Extract audio and generate transcript via Pollinations.
 - `POST /projects/{id}/analyze`: Discover clips using LLM.
 - `GET /projects/{id}/status`: Check progress of background operations.
 
@@ -116,6 +125,7 @@ run.bat
 | `PROJECT_EXPIRY_DAYS` | `30`           | Days until project is auto-deleted.     |
 | `LLM_MODEL`           | `openai-large` | Model used for clip discovery.          |
 | `LLM_BASE_URL`        | `Pollinations` | API endpoint for LLM analysis.          |
+| `POLLINATIONS_APP_KEY` | (empty) | Publishable key for Pollinations auth redirect |
 
 ## 🧪 Testing
 

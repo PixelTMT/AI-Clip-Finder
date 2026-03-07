@@ -396,3 +396,28 @@ video { width: 100%; border-radius: 8px; background: #000; }
     border-color: rgba(255,255,255,0.2);
     border-top-color: #fff;
 }
+
+/* Pollinations BYOP Auth */
+#pollinations-auth {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+.auth-btn {
+    padding: 0.4rem 1rem;
+    background: #6c47ff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+.auth-btn:hover { background: #5535cc; }
+.auth-btn.connected { background: #03dac6; color: #000; }
+.auth-status {
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+.auth-status.connected { color: #03dac6; }
+.auth-status.disconnected { color: #cf6679; }
