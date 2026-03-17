@@ -1,6 +1,6 @@
-import subprocess
 import os
 from typing import List
+import ffmpeg
 from app.api.models import ClipExportRequest, SubtitleWord
 
 
@@ -63,45 +63,30 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         return header + "\n".join(events)
 
-    def _build_ffmpeg_command(
-        self, input_path: str, output_path: str, ass_path: str, start: float, end: float
-    ) -> List[str]:
-        # Escape path for filter
-        # Windows: "D:\foo\bar.ass" -> "D\:/foo/bar.ass" or use forward slashes for filter arg
-        # But subprocess needs OS paths for arguments, filter string internal needs escaping.
-        # Best way is usually forward slashes for the filter string on Windows too if using libavfilter.
-        ass_path_filter = ass_path.replace("\\", "/").replace(":", "\\:")
-
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-ss",
-            str(start),
-            "-to",
-            str(end),
-            "-i",
-            input_path,
-            # Filter explanation:
-            # crop=ih*(9/16):ih:(iw-ow)/2:0 -> Crop to 9:16 aspect ratio (width based on height), center horizontally.
-            # subtitles='path' -> Burn subtitles.
-            "-vf",
-            f"crop=ih*(9/16):ih:(iw-ow)/2:0,subtitles='{ass_path_filter}'",
-            "-c:v",
-            "libx264",
-            "-c:a",
-            "aac",
-            output_path,
-        ]
-        return cmd
-
     def render_video(
         self, input_path: str, output_path: str, ass_path: str, start: float, end: float
     ):
-        cmd = self._build_ffmpeg_command(input_path, output_path, ass_path, start, end)
+        """
+        Renders the video with cropping and burned-in subtitles using ffmpeg-python.
+        """
+        # Escape path for filter
+        # Windows: "D:\foo\bar.ass" -> "D\:/foo/bar.ass" or use forward slashes for filter arg
+        ass_path_filter = ass_path.replace("\\", "/").replace(":", "\\:")
+
         try:
-            subprocess.run(cmd, check=True, capture_output=True)
-        except subprocess.CalledProcessError as e:
-            # Log error details if available
+            stream = ffmpeg.input(input_path, ss=start, to=end)
+
+            # Crop to 9:16 aspect ratio (width based on height), center horizontally.
+            # Burning subtitles after crop
+            stream = stream.filter("crop", "ih*(9/16)", "ih", "(iw-ow)/2", 0)
+            stream = stream.filter("subtitles", ass_path_filter)
+
+            stream = ffmpeg.output(stream, output_path, vcodec="libx264", acodec="aac")
+
+            ffmpeg.run(
+                stream, overwrite_output=True, capture_stdout=True, capture_stderr=True
+            )
+        except ffmpeg.Error as e:
             err_msg = e.stderr.decode() if e.stderr else str(e)
             raise RuntimeError(f"FFmpeg render failed: {err_msg}")
 
