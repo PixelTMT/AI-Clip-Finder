@@ -176,6 +176,10 @@ Control the application behavior by tweaking the `.env` variables:
 | `LLM_BASE_URL`         | `Pollinations` | API endpoint for LLM analysis.                  |
 | `LLM_API_KEY`          | `(empty)`      | Server-side AI key. Set it to disable BYOP.     |
 | `POLLINATIONS_APP_KEY` | `(empty)`      | Publishable key for Pollinations auth redirect. |
+| `MEDIA_COMPRESS_MODE`  | `always`       | `always` re-encodes uploads, `auto` only when not web-compatible, `never` always passthrough. |
+| `MEDIA_CRF`            | `32`           | x264 quality factor for upload re-encoding (lower = better/larger). |
+| `MEDIA_PRESET`         | `(ffmpeg default)` | x264 speed preset (e.g. `veryfast`). Empty keeps ffmpeg's default. |
+| `MEDIA_AUDIO_BITRATE`  | `128k`         | AAC bitrate for upload re-encoding.             |
 
 ---
 

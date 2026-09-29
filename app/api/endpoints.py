@@ -155,9 +155,13 @@ def process_upload_background(project_id: str, original_path: str, processed_pat
             project_id,
             type=OperationType.UPLOAD,
             status=OperationStatus.RUNNING,
-            message="Compressing video...",
+            message=(
+                "Compressing video..."
+                if settings.MEDIA_COMPRESS_MODE == "always"
+                else "Processing video..."
+            ),
         )
-        media.compress_video(original_path, processed_path)
+        media.prepare_video(original_path, processed_path)
         storage.update_project_status(project_id, "uploaded")
         storage.clear_active_operation(project_id)
     except Exception as e:

@@ -1,7 +1,21 @@
+"""FFmpeg helpers for probing, ingesting and slicing project media.
+
+Ingestion honors ``MEDIA_COMPRESS_MODE`` (see :func:`prepare_video`): uploads can
+be passed through untouched instead of being re-encoded. In passthrough mode the
+original container/codec is preserved as-is, so a format no browser can play
+(e.g. HEVC MKV) stays unplayable - ``auto`` exists to avoid exactly that.
+"""
+
 import os
 import argparse
 import json
+import logging
+import shutil
 import ffmpeg
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_video_metadata(input_path: str) -> dict:
@@ -58,31 +72,154 @@ def is_web_compatible(metadata: dict) -> bool:
     return container_ok and video_ok and audio_ok
 
 
-def compress_video(input_path: str, output_path: str):
+def compress_video(
+    input_path: str,
+    output_path: str,
+    crf: int = None,
+    preset: str = None,
+    audio_bitrate: str = None,
+):
     """
-    Compresses video for web compatibility using ffmpeg-python.
+    Re-encodes a video to a web-playable H.264/AAC MP4 using ffmpeg-python.
+
+    Args:
+        input_path: Source video path.
+        output_path: Destination MP4 path (overwritten if present).
+        crf: Constant Rate Factor override. Falls back to ``settings.MEDIA_CRF``.
+        preset: x264 preset override (e.g. ``"veryfast"``). Empty/None keeps the
+            ffmpeg default, which is what unconfigured installs used before.
+        audio_bitrate: AAC bitrate override. Falls back to
+            ``settings.MEDIA_AUDIO_BITRATE``.
+
+    Raises:
+        RuntimeError: When ffmpeg exits with a non-zero status.
     """
+    crf = settings.MEDIA_CRF if crf is None else crf
+    audio_bitrate = settings.MEDIA_AUDIO_BITRATE if audio_bitrate is None else audio_bitrate
+
+    output_args = {
+        "vsync": "1",
+        "vcodec": "libx264",
+        "pix_fmt": "yuv420p",
+        "rc": "crf",
+        "crf": str(crf),
+        "acodec": "aac",
+        "b:a": audio_bitrate,
+        "movflags": "+faststart",
+        "threads": 0,
+    }
+    # Only pass a preset when configured, so the ffmpeg default stays untouched.
+    if preset:
+        output_args["preset"] = preset
+
     try:
         stream = ffmpeg.input(input_path)
-        stream = ffmpeg.output(
-            stream,
-            output_path,
-            vsync="1",
-            vcodec="libx264",
-            pix_fmt="yuv420p",
-            rc="crf",
-            crf="32",
-            acodec="aac",
-            **{"b:a": "128k"},
-            movflags="+faststart",
-            threads=0,
-        )
+        stream = ffmpeg.output(stream, output_path, **output_args)
         ffmpeg.run(
             stream, overwrite_output=True, capture_stdout=True, capture_stderr=True
         )
     except ffmpeg.Error as e:
         err_msg = e.stderr.decode() if e.stderr else str(e)
         raise RuntimeError(f"FFmpeg compression failed: {err_msg}")
+
+
+def _passthrough(input_path: str, output_path: str):
+    """
+    Makes ``processed.mp4`` an alias of the uploaded file with no re-encode.
+
+    Uses a hardlink so the operation is instant and costs no extra disk space,
+    falling back to a byte copy when the filesystem refuses the link (different
+    volume, no hardlink support, ...).
+
+    Args:
+        input_path: Uploaded source video path.
+        output_path: Destination path expected by the rest of the pipeline.
+
+    Raises:
+        RuntimeError: When neither linking nor copying succeeds.
+    """
+    if os.path.abspath(input_path) == os.path.abspath(output_path):
+        logger.info("Media passthrough skipped: input and output are the same file")
+        return
+
+    if os.path.exists(output_path):
+        os.remove(output_path)
+
+    try:
+        os.link(input_path, output_path)
+        logger.info("Media passthrough: hardlinked %s -> %s", input_path, output_path)
+    except OSError as e:
+        logger.warning(
+            "Hardlink unavailable (%s): copying %s -> %s instead",
+            e,
+            input_path,
+            output_path,
+        )
+        try:
+            shutil.copy2(input_path, output_path)
+        except OSError as copy_error:
+            raise RuntimeError(
+                f"Media passthrough failed for {input_path}: {copy_error}"
+            )
+        logger.info("Media passthrough: copied %s -> %s", input_path, output_path)
+
+
+def prepare_video(input_path: str, output_path: str, mode: str = None):
+    """
+    Produces ``processed.mp4`` for a fresh upload, re-encoding only when needed.
+
+    Modes:
+        ``always``: always re-encode (historical behavior, guaranteed web-playable).
+        ``auto``: re-encode only when ffprobe reports an incompatible container
+            or codec; otherwise passthrough the original.
+        ``never``: always passthrough the original, even when browsers cannot
+            play it.
+
+    Args:
+        input_path: Uploaded source video path.
+        output_path: Destination path expected by the rest of the pipeline.
+        mode: Overrides ``settings.MEDIA_COMPRESS_MODE`` when provided.
+
+    Raises:
+        RuntimeError: When re-encoding, probing or passthrough fails.
+    """
+    mode = (mode or settings.MEDIA_COMPRESS_MODE or "always").lower()
+
+    if mode == "never":
+        logger.info("MEDIA_COMPRESS_MODE=never: passing upload through untouched")
+        _passthrough(input_path, output_path)
+        return
+
+    if mode == "auto":
+        metadata = get_video_metadata(input_path)
+        if is_web_compatible(metadata):
+            logger.info(
+                "MEDIA_COMPRESS_MODE=auto: %s is already web-compatible "
+                "(format=%s video=%s audio=%s), passing through untouched",
+                input_path,
+                metadata["format"],
+                metadata["video_codec"],
+                metadata["audio_codec"],
+            )
+            _passthrough(input_path, output_path)
+            return
+        logger.info(
+            "MEDIA_COMPRESS_MODE=auto: re-encoding %s (format=%s video=%s audio=%s)",
+            input_path,
+            metadata["format"],
+            metadata["video_codec"],
+            metadata["audio_codec"],
+        )
+    else:
+        logger.info("MEDIA_COMPRESS_MODE=always: re-encoding %s", input_path)
+
+    compress_video(
+        input_path,
+        output_path,
+        crf=None,
+        preset=settings.MEDIA_PRESET,
+        audio_bitrate=None,
+    )
 
 
 def extract_audio(input_path: str, output_path: str):
@@ -131,6 +268,15 @@ if __name__ == "__main__":
     p_compress = subparsers.add_parser("compress")
     p_compress.add_argument("input")
     p_compress.add_argument("output")
+    p_compress.add_argument(
+        "--mode",
+        choices=settings.MEDIA_COMPRESS_MODES,
+        default=settings.MEDIA_COMPRESS_MODE,
+        help=(
+            "always: re-encode; auto: re-encode only if not web-compatible; "
+            "never: passthrough (default: %(default)s, from MEDIA_COMPRESS_MODE)"
+        ),
+    )
 
     # Extract Audio
     p_audio = subparsers.add_parser("audio")
@@ -150,8 +296,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.command == "compress":
-        compress_video(args.input, args.output)
-        print(f"Compressed {args.input} to {args.output}")
+        prepare_video(args.input, args.output, mode=args.mode)
+        print(f"Processed {args.input} to {args.output} (mode={args.mode})")
     elif args.command == "audio":
         extract_audio(args.input, args.output)
         print(f"Extracted audio from {args.input} to {args.output}")
