@@ -19,16 +19,14 @@ function asyncOperation(url, options = {}) {
     // We explicitly do NOT return the promise to the caller to prevent awaiting.
     fetch(url, options)
         .then(response => {
-            if (response.status === 401) {
-                if (typeof PollinationsAuth !== 'undefined') {
-                    PollinationsAuth.showReconnectToast();
-                }
+            // BYOP-only: 401/402 mean the user's Pollinations key, not the server's.
+            const byop = typeof PollinationsAuth !== 'undefined' && PollinationsAuth.isByop();
+            if (byop && response.status === 401) {
+                PollinationsAuth.showReconnectToast();
                 return;
             }
-            if (response.status === 402) {
-                if (typeof PollinationsAuth !== 'undefined') {
-                    PollinationsAuth.showBalanceToast();
-                }
+            if (byop && response.status === 402) {
+                PollinationsAuth.showBalanceToast();
                 return;
             }
             if (!response.ok) {

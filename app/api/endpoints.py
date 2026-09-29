@@ -32,17 +32,24 @@ def get_user_project(index: dict, project_id: str, user_id: str = None) -> Optio
     return project
 
 def get_api_key(request: Request) -> str:
-    """Extract API key from Authorization or X-Pollinations-Key header.
+    """Return the API key to use for AI calls.
+
+    When BYOP is disabled (``settings.BYOP`` false) the server-side
+    ``LLM_API_KEY`` is used and no client header is required. When BYOP is
+    enabled the key is read from the ``Authorization`` or
+    ``X-Pollinations-Key`` header.
 
     Args:
         request: The incoming FastAPI request.
 
     Returns:
-        The extracted API key string.
+        The API key string.
 
     Raises:
-        HTTPException: 401 if no API key is found.
+        HTTPException: 401 if BYOP is active and no API key is present.
     """
+    if not settings.BYOP:
+        return settings.LLM_API_KEY or "no-key-configured"
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         return auth_header[7:]
@@ -68,6 +75,7 @@ async def get_editor():
 async def get_pollinations_config():
     """Return Pollinations configuration for client-side BYOP auth."""
     return {
+        "byop": settings.BYOP,
         "app_key": settings.POLLINATIONS_APP_KEY,
         "auth_url": "https://enter.pollinations.ai/authorize",
     }

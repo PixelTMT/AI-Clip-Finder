@@ -45,6 +45,8 @@ _Features currently in development for the editor include:_
 
 ## 🔑 BYOP (Bring Your Own Pollen) - Zero Server AI Costs
 
+Available **only when `HOSTING=true` and `LLM_API_KEY` is empty**. If the operator sets `LLM_API_KEY`, or runs the app locally (`HOSTING=false`), the server-side key is used and the "Connect with Pollinations" button is hidden — server pays.
+
 This application utilizes a brilliant **Bring Your Own Pollen** model, ensuring that **Server AI costs remain exactly $0**.
 
 1. Users click **"Connect with Pollinations"** in the app header.
@@ -126,6 +128,7 @@ run.bat
 
    ```env
    POLLINATIONS_APP_KEY=pk_your_app_key_here
+   LLM_API_KEY=                       # Set to use server-side AI credentials (disables BYOP)
    HOSTING=false             # Set to true for multi-user mode
    ```
 
@@ -171,6 +174,7 @@ Control the application behavior by tweaking the `.env` variables:
 | `PROJECT_EXPIRY_DAYS`  | `30`           | Days until a project is automatically deleted.  |
 | `LLM_MODEL`            | `openai`       | Model used for clip discovery.                  |
 | `LLM_BASE_URL`         | `Pollinations` | API endpoint for LLM analysis.                  |
+| `LLM_API_KEY`          | `(empty)`      | Server-side AI key. Set it to disable BYOP.     |
 | `POLLINATIONS_APP_KEY` | `(empty)`      | Publishable key for Pollinations auth redirect. |
 
 ---

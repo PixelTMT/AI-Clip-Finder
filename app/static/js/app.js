@@ -23,6 +23,13 @@ if (typeof window !== 'undefined') {
 // --- Pollinations BYOP Auth ---
 const PollinationsAuth = (() => {
     const STORAGE_KEY = 'pollinations_api_key';
+    // BYOP is disabled when the server has its own LLM credentials or when
+    // HOSTING is false (see settings.BYOP). Resolved from /config/pollinations.
+    let byop = false;
+
+    function isByop() {
+        return byop;
+    }
 
     function getKey() {
         return localStorage.getItem(STORAGE_KEY);
@@ -37,6 +44,7 @@ const PollinationsAuth = (() => {
     }
 
     function getAuthHeaders() {
+        if (!byop) return {};
         const key = getKey();
         return key ? { 'Authorization': `Bearer ${key}` } : {};
     }
@@ -71,8 +79,19 @@ const PollinationsAuth = (() => {
         handleCallback();
 
         const config = await fetchAppConfig();
+        byop = config ? config.byop === true : false;
+
+        // Server-managed credentials: no BYOP UI, no per-request key.
+        if (!byop) {
+            const container = document.getElementById('pollinations-auth');
+            if (container) container.classList.add('hidden');
+            return;
+        }
+
         const appKey = config ? config.app_key : '';
         const authUrl = config ? config.auth_url : 'https://enter.pollinations.ai/authorize';
+
+        if (!btnConnect || !statusEl) return;
 
         function updateUI() {
             const key = getKey();
@@ -99,6 +118,7 @@ const PollinationsAuth = (() => {
     }
 
     function showReconnectToast() {
+        if (!byop) return;
         if (window.showToast) {
             window.showToast('Pollinations key expired. Please reconnect.', 'error', 8000);
         }
@@ -115,6 +135,7 @@ const PollinationsAuth = (() => {
     }
 
     function showBalanceToast() {
+        if (!byop) return;
         if (window.showToast) {
             window.showToast(
                 'Insufficient Pollinations balance. <a href="https://pollinations.ai/pricing" target="_blank" style="color:#fff;text-decoration:underline">Top up here</a>',
@@ -124,7 +145,7 @@ const PollinationsAuth = (() => {
         }
     }
 
-    return { getKey, setKey, clearKey, getAuthHeaders, init, showReconnectToast, showBalanceToast };
+    return { isByop, getKey, setKey, clearKey, getAuthHeaders, init, showReconnectToast, showBalanceToast };
 })();
 document.addEventListener('DOMContentLoaded', () => {
     const videoUpload = document.getElementById('video-upload');
