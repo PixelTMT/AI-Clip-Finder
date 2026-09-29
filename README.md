@@ -173,8 +173,11 @@ Control the application behavior by tweaking the `.env` variables:
 | `MAX_FILE_SIZE`        | `500MB`        | Max upload size in hosting mode.                |
 | `PROJECT_EXPIRY_DAYS`  | `30`           | Days until a project is automatically deleted.  |
 | `LLM_MODEL`            | `openai`       | Model used for clip discovery.                  |
-| `LLM_BASE_URL`         | `Pollinations` | API endpoint for LLM analysis.                  |
+| `LLM_BASE_URL`         | `https://gen.pollinations.ai/v1` | API endpoint for LLM analysis.  |
 | `LLM_API_KEY`          | `(empty)`      | Server-side AI key. Set it to disable BYOP.     |
+| `TRANSCRIBE_BASE_URL`  | `LLM_BASE_URL` | API endpoint for transcription. Empty reuses `LLM_BASE_URL`. |
+| `TRANSCRIBE_MODEL`     | `whisper-large-v3` | Speech-to-text model id on the transcription endpoint. |
+| `TRANSCRIBE_API_KEY`   | `LLM_API_KEY`  | Key for the transcription endpoint. Empty reuses `LLM_API_KEY`. |
 | `POLLINATIONS_APP_KEY` | `(empty)`      | Publishable key for Pollinations auth redirect. |
 | `MEDIA_COMPRESS_MODE`  | `always`       | `always` re-encodes uploads, `auto` only when not web-compatible, `never` always passthrough. |
 | `MEDIA_CRF`            | `32`           | x264 quality factor for upload re-encoding (lower = better/larger). |

@@ -6,16 +6,17 @@ from app.core.config import settings
 
 
 def transcribe_audio(file_path: str, api_key: str) -> dict:
-    """Transcribe an audio file using the Pollinations Scribe model.
+    """Transcribe an audio file using an OpenAI-compatible endpoint.
 
-    Sends the audio file to the Pollinations-hosted Scribe (ElevenLabs
-    Scribe v2) model via the OpenAI-compatible API. Returns a normalized
-    dict with full text and segment-level timestamps. Results are cached
-    to disk to avoid redundant API calls.
+    Sends the audio file to the configured transcription endpoint
+    (``settings.TRANSCRIBE_BASE_URL``, defaulting to the LLM endpoint) using
+    ``settings.TRANSCRIBE_MODEL``. Returns a normalized dict with full text and
+    segment-level timestamps. Results are cached to disk to avoid redundant API
+    calls.
 
     Args:
         file_path: Absolute or relative path to the audio file.
-        api_key: Pollinations API key for authentication.
+        api_key: API key for the transcription endpoint.
 
     Returns:
         A dict with shape ``{text: str, segments: [{start, end, text}]}``.
@@ -33,14 +34,14 @@ def transcribe_audio(file_path: str, api_key: str) -> dict:
             pass  # corrupted cache, proceed to re-transcribe
 
     client = OpenAI(
-        base_url=settings.LLM_BASE_URL,
+        base_url=settings.TRANSCRIBE_BASE_URL,
         api_key=api_key,
     )
 
     with open(file_path, "rb") as file:
         transcription = client.audio.transcriptions.create(
             file=(os.path.basename(file_path), file.read()),
-            model="whisper-large-v3",
+            model=settings.TRANSCRIBE_MODEL,
             response_format="verbose_json",
             timestamp_granularities=["word", "segment"],
             language="en",

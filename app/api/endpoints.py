@@ -31,16 +31,18 @@ def get_user_project(index: dict, project_id: str, user_id: str = None) -> Optio
         
     return project
 
-def get_api_key(request: Request) -> str:
+def get_api_key(request: Request, *, transcribe: bool = False) -> str:
     """Return the API key to use for AI calls.
 
-    When BYOP is disabled (``settings.BYOP`` false) the server-side
-    ``LLM_API_KEY`` is used and no client header is required. When BYOP is
-    enabled the key is read from the ``Authorization`` or
-    ``X-Pollinations-Key`` header.
+    When BYOP is disabled (``settings.BYOP`` false) the server-side key for the
+    requested service is used and no client header is required: transcription
+    reads ``TRANSCRIBE_API_KEY`` (falling back to ``LLM_API_KEY``), analysis
+    reads ``LLM_API_KEY``. When BYOP is enabled the key is read from the
+    ``Authorization`` or ``X-Pollinations-Key`` header for both.
 
     Args:
         request: The incoming FastAPI request.
+        transcribe: Select the transcription credential instead of the LLM one.
 
     Returns:
         The API key string.
@@ -49,7 +51,12 @@ def get_api_key(request: Request) -> str:
         HTTPException: 401 if BYOP is active and no API key is present.
     """
     if not settings.BYOP:
-        return settings.LLM_API_KEY or "no-key-configured"
+        key = (
+            (settings.TRANSCRIBE_API_KEY or settings.LLM_API_KEY)
+            if transcribe
+            else settings.LLM_API_KEY
+        )
+        return key or "no-key-configured"
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         return auth_header[7:]
@@ -324,7 +331,7 @@ async def transcribe_project(project_id: str, request: Request, background_tasks
             raise HTTPException(status_code=404, detail="Project not found")
     
     check_project_lock(project_id)
-    api_key = get_api_key(request)
+    api_key = get_api_key(request, transcribe=True)
 
 
     project_path = os.path.join(settings.PROJECTS_DIR, project_id)

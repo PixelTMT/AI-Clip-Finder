@@ -33,7 +33,7 @@ if sys.platform == "win32":
 # Configuration
 # ---------------------------------------------------------------------------
 API_KEY = os.environ.get(
-    "LLM_API_KEY", "sk_5zBErRz0J7imiRSjDtAf0c4HzAFcH7Kx"
+    "LLM_API_KEY", ""
 )
 BASE_URL = "https://gen.pollinations.ai/v1"
 TEST_AUDIO_PATH = os.path.join(

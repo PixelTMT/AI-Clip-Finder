@@ -1,10 +1,34 @@
 import logging
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
+import sys
+from dotenv import dotenv_values, load_dotenv
 
 logger = logging.getLogger(__name__)
+
+# `.env` is the source of truth for local runs. Without ``override=True`` any
+# pre-existing OS/user environment variable silently shadows the file and the
+# app talks to a different endpoint than the operator configured. Values that
+# actually get replaced are logged so the divergence is never invisible.
+#
+# Applied once per process: the guard lives on ``sys`` (not this module) so
+# ``importlib.reload`` of this module does not re-assert `.env` over environment
+# variables that were set programmatically after startup.
+if not getattr(sys, "_ai_clip_finder_dotenv_loaded", False):
+    _env_file = dotenv_values(".env")
+    _env_before = {key: os.environ.get(key, "") for key in _env_file}
+    load_dotenv(override=True)
+    for _key, _value in _env_file.items():
+        if _value is not None and _value != _env_before[_key]:
+            logger.warning(
+                "Config %s: `.env` value %r overrides environment value %r",
+                _key,
+                _value,
+                _env_before[_key],
+            )
+    sys._ai_clip_finder_dotenv_loaded = True
+    # Drop the bootstrap scratch names so the module namespace stays clean.
+    for _name in ("_env_file", "_env_before", "_key", "_value"):
+        globals().pop(_name, None)
 
 
 def _env_int(name: str, default: int) -> int:
@@ -42,6 +66,12 @@ class Settings:
     # Server-side LLM credentials. When present, BYOP is disabled: the server
     # authenticates the calls and the operator pays.
     LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
+    # Transcription can live on a different OpenAI-compatible endpoint than the
+    # LLM (e.g. local gateway for chat, Pollinations for whisper). Each setting
+    # falls back to its LLM counterpart when unset.
+    TRANSCRIBE_BASE_URL = os.environ.get("TRANSCRIBE_BASE_URL", "") or LLM_BASE_URL
+    TRANSCRIBE_MODEL = os.environ.get("TRANSCRIBE_MODEL", "").strip() or "whisper-large-v3"
+    TRANSCRIBE_API_KEY = os.environ.get("TRANSCRIBE_API_KEY", "") or LLM_API_KEY
     POLLINATIONS_APP_KEY = os.environ.get("POLLINATIONS_APP_KEY", "")
     # Hosting & Limits
     HOSTING = os.environ.get("HOSTING", "false").lower() == "true"
@@ -76,5 +106,16 @@ class Settings:
                 "BYOP disabled and LLM_API_KEY is not set: AI calls will fail "
                 "with 401. Set LLM_API_KEY or enable HOSTING=true."
             )
+
+        logger.info(
+            "AI config resolved: llm=%s model=%s | transcribe=%s model=%s | "
+            "hosting=%s byop=%s",
+            self.LLM_BASE_URL,
+            self.LLM_MODEL,
+            self.TRANSCRIBE_BASE_URL,
+            self.TRANSCRIBE_MODEL,
+            self.HOSTING,
+            self.BYOP,
+        )
 
 settings = Settings()
